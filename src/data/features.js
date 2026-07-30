@@ -1,10 +1,3 @@
-/**
- * Technical-analysis feature engineering (mirrors the Python version).
- * All computations are pure JS — no backend required.
- *
- * Input:  { prices: number[], volumes: number[] }
- * Output: array of feature-row objects, one per valid bar.
- */
 
 export function computeFeatures(prices, volumes) {
   const n = prices.length;
