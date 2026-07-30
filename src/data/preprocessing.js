@@ -1,12 +1,4 @@
-/**
- * Preprocessing utilities — time split, MinMax scaling, LSTM sequences.
- * Pure JavaScript, runs in-browser.
- */
 
-/**
- * Time-based train / val / test split (no leakage).
- * Returns { train, val, test } each as plain number arrays.
- */
 export function timeSplit(arr, trainFrac = 0.8, valFrac = 0.1) {
   const n = arr.length;
   const trainEnd = Math.floor(n * trainFrac);
@@ -18,9 +10,7 @@ export function timeSplit(arr, trainFrac = 0.8, valFrac = 0.1) {
   };
 }
 
-/**
- * MinMax scaler — fit on data, then transform / inverse.
- */
+
 export function fitMinMaxScaler(data) {
   let min = Infinity,
     max = -Infinity;
@@ -42,11 +32,7 @@ export function fitMinMaxScaler(data) {
   };
 }
 
-/**
- * Build LSTM sliding-window sequences.
- * Returns { X: number[][][], y: number[] }
- * X shape: [samples, lookback, 1]
- */
+
 export function buildSequences(scaledArr, lookback = 60) {
   const X = [];
   const y = [];
