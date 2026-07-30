@@ -1,24 +1,11 @@
-/**
- * Client-side stock data fetcher.
- *
- * Data source priority:
- *   1. Alpha Vantage (CORS-enabled, works directly from browser)
- *      — requires a free API key from alphavantage.co
- *   2. Yahoo Finance via CORS proxies (fallback, unreliable)
- *   3. Direct Yahoo fetch (localhost only)
- *
- * Alpha Vantage free tier: 25 requests/day. Results are cached per
- * session so repeated fetches for the same ticker don't consume quota.
- */
 
-// ─── session cache ───────────────────────────────────────
+//Client-side stock data fetcher.
 
 const _cache = {};
 function cacheKey(ticker, start, end) {
   return `${ticker}_${start}_${end}`;
 }
 
-// ─── Alpha Vantage (primary) ─────────────────────────────
 
 async function fetchAlphaVantage(ticker, startDate, endDate, apiKey) {
   const url =
@@ -30,12 +17,12 @@ async function fetchAlphaVantage(ticker, startDate, endDate, apiKey) {
 
   const data = await resp.json();
 
-  // Check for AV error messages
+  
   if (data["Error Message"]) {
     throw new Error(`Alpha Vantage: ${data["Error Message"]}`);
   }
   if (data["Note"]) {
-    // Rate limit message
+    
     throw new Error(`Alpha Vantage rate limit: ${data["Note"]}`);
   }
   if (data["Information"]) {
@@ -47,7 +34,6 @@ async function fetchAlphaVantage(ticker, startDate, endDate, apiKey) {
     throw new Error(`Alpha Vantage returned no time series for "${ticker}".`);
   }
 
-  // AV returns all history, we need to filter to [startDate, endDate]
   const allDates = Object.keys(timeSeries).sort(); // ascending
   const dates = [], prices = [], volumes = [], highs = [], lows = [], opens = [];
 
@@ -74,7 +60,6 @@ async function fetchAlphaVantage(ticker, startDate, endDate, apiKey) {
   return { dates, prices, volumes, highs, lows, opens };
 }
 
-// ─── Yahoo Finance via CORS proxies (fallback) ──────────
 
 const PROXIES = [
   {
@@ -122,7 +107,6 @@ async function fetchYahooViaProxies(ticker, startDate, endDate) {
 
   const errors = [];
 
-  // Try v8 JSON
   for (const proxy of PROXIES) {
     try {
       const resp = await fetch(proxy.buildUrl(v8));
@@ -136,7 +120,6 @@ async function fetchYahooViaProxies(ticker, startDate, endDate) {
     } catch (e) { errors.push(`${proxy.name} v8: ${e.message}`); }
   }
 
-  // Try v7 CSV
   for (const proxy of PROXIES) {
     try {
       const resp = await fetch(proxy.buildUrl(v7));
@@ -148,7 +131,6 @@ async function fetchYahooViaProxies(ticker, startDate, endDate) {
     } catch (e) { errors.push(`${proxy.name} v7: ${e.message}`); }
   }
 
-  // Direct (localhost)
   for (const url of [v8, v7]) {
     try {
       const resp = await fetch(url);
@@ -166,7 +148,6 @@ async function fetchYahooViaProxies(ticker, startDate, endDate) {
   );
 }
 
-// ─── parsers ─────────────────────────────────────────────
 
 function parseYahooChart(json, ticker) {
   const chart = json.chart.result[0];
@@ -215,29 +196,21 @@ function parseYahooCsv(csv, ticker) {
   return { dates, prices, volumes, highs, lows, opens };
 }
 
-// ─── main export ─────────────────────────────────────────
 
-/**
- * Fetch stock data. Uses Alpha Vantage if apiKey is provided,
- * falls back to Yahoo via CORS proxies.
- */
 export async function fetchStockData(ticker, startDate, endDate, apiKey) {
   const key = cacheKey(ticker, startDate, endDate);
   if (_cache[key]) return _cache[key];
 
-  // Strategy 1: Alpha Vantage (reliable, CORS-enabled)
   if (apiKey) {
     try {
       const result = await fetchAlphaVantage(ticker, startDate, endDate, apiKey);
       _cache[key] = result;
       return result;
     } catch (avErr) {
-      // If AV fails (rate limit, bad key), fall through to Yahoo
       console.warn("Alpha Vantage failed, trying Yahoo fallback:", avErr.message);
     }
   }
 
-  // Strategy 2: Yahoo Finance via CORS proxies
   const result = await fetchYahooViaProxies(ticker, startDate, endDate);
   _cache[key] = result;
   return result;
