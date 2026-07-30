@@ -1,10 +1,5 @@
 /**
- * LSTM forecasting model — TensorFlow.js (runs 100% in the browser).
- *
- * Architecture (from 034adarsh/Stock-Price-Prediction-Using-LSTM):
- *   Input(lookback,1) → LSTM(64) → Dropout(0.2) →
- *   LSTM(64) → Dropout(0.2) → Dense(32,relu) → Dense(1)
- *
+ * Architecture inspired from 034adarsh/Stock-Price-Prediction-Using-LSTM
  * Walk-forward iterative 30-trading-day forecast.
  */
 import * as tf from "@tensorflow/tfjs";
@@ -13,20 +8,11 @@ import {
   buildSequences,
 } from "../data/preprocessing";
 
-/**
- * Train the LSTM.
- * @param {number[]} trainPrices  raw prices (train split)
- * @param {number[]} valPrices    raw prices (val split)
- * @param {number}   lookback     window length (default 60)
- * @param {Function} onEpoch      callback(epoch, logs) for progress
- * @returns {{ model, scaler, history }}
- */
+
 export async function trainLSTM(trainPrices, valPrices, lookback = 60, onEpoch) {
-  // Fit scaler on train only
   const scaler = fitMinMaxScaler(trainPrices);
   const trainScaled = scaler.transform(trainPrices);
 
-  // For val sequences we need the tail of train as context
   const combined = [...trainPrices.slice(-lookback), ...valPrices];
   const combinedScaled = scaler.transform(combined);
 
@@ -38,7 +24,6 @@ export async function trainLSTM(trainPrices, valPrices, lookback = 60, onEpoch) 
   const xVal = tf.tensor3d(valSeq.X);
   const yVal = tf.tensor1d(valSeq.y);
 
-  // Build model
   const model = tf.sequential();
   model.add(
     tf.layers.lstm({
@@ -55,7 +40,6 @@ export async function trainLSTM(trainPrices, valPrices, lookback = 60, onEpoch) 
 
   model.compile({ optimizer: "adam", loss: "meanSquaredError" });
 
-  // Early stopping logic (manual — tfjs doesn't have keras callbacks)
   let bestValLoss = Infinity;
   let patience = 5;
   let wait = 0;
@@ -91,7 +75,6 @@ export async function trainLSTM(trainPrices, valPrices, lookback = 60, onEpoch) 
     }
   }
 
-  // Cleanup tensors
   xTrain.dispose();
   yTrain.dispose();
   xVal.dispose();
@@ -101,10 +84,7 @@ export async function trainLSTM(trainPrices, valPrices, lookback = 60, onEpoch) 
   return { model, scaler, history };
 }
 
-/**
- * Iterative walk-forward 30-day forecast.
- * @returns {number[]} array of predicted prices (length = horizon)
- */
+
 export async function forecastLSTM(model, scaler, recentPrices, lookback = 60, horizon = 30) {
   const scaled = scaler.transform(recentPrices.slice(-lookback));
   const window = [...scaled];
@@ -126,9 +106,7 @@ export async function forecastLSTM(model, scaler, recentPrices, lookback = 60, h
   return scaler.inverse(predsScaled);
 }
 
-/**
- * Evaluate on test set — returns { MAE, RMSE, MAPE }.
- */
+
 export async function evaluateLSTM(model, scaler, testPrices, contextPrices, lookback = 60) {
   const full = [...contextPrices.slice(-lookback), ...testPrices];
   const fullScaled = scaler.transform(full);
