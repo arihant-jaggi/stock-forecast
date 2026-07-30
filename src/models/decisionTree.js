@@ -1,16 +1,6 @@
-/**
- * Decision Tree Regressor — pure JavaScript implementation.
- *
- * CART-style binary splits with MSE criterion.
- * Grid-searched hyperparameters (max_depth, min_samples_split,
- * min_samples_leaf) on the validation set, best by RMSE.
- *
- * No external libraries required — runs in the browser.
- */
 
 import { computeFeatures, FEATURE_KEYS, featureVector } from "../data/features";
 
-// ─── Tree Node ──────────────────────────────────────────
 
 class TreeNode {
   constructor() {
@@ -21,8 +11,6 @@ class TreeNode {
     this.right = null;
   }
 }
-
-// ─── Build tree ─────────────────────────────────────────
 
 function mse(targets) {
   if (targets.length === 0) return 0;
@@ -44,7 +32,6 @@ function buildTree(X, y, depth, maxDepth, minSplit, minLeaf, maxFeatures) {
   }
 
   const nFeatures = X[0].length;
-  // Which features to consider?
   let featureIndices;
   if (maxFeatures === "sqrt") {
     const k = Math.max(1, Math.floor(Math.sqrt(nFeatures)));
@@ -64,7 +51,6 @@ function buildTree(X, y, depth, maxDepth, minSplit, minLeaf, maxFeatures) {
   const parentMSE = mse(y);
 
   for (const fi of featureIndices) {
-    // Unique sorted values for this feature
     const vals = X.map((row) => row[fi]);
     const sorted = [...new Set(vals)].sort((a, b) => a - b);
 
@@ -95,7 +81,7 @@ function buildTree(X, y, depth, maxDepth, minSplit, minLeaf, maxFeatures) {
     }
   }
 
-  if (bestFeat === -1) return node; // no valid split found
+  if (bestFeat === -1) return node;
 
   node.featureIdx = bestFeat;
   node.threshold = bestThresh;
@@ -126,7 +112,6 @@ function randomSubset(n, k) {
   return all.slice(0, k);
 }
 
-// ─── Hyperparameter grid ────────────────────────────────
 
 const GRID = {
   maxDepth: [3, 5, 8, 12, null],
@@ -143,17 +128,7 @@ function* gridConfigs() {
           yield { maxDepth: md, minSamplesSplit: mss, minSamplesLeaf: msl, maxFeatures: mf };
 }
 
-// ─── Public API ─────────────────────────────────────────
 
-/**
- * Train a Decision Tree with grid search on validation RMSE.
- * @param {number[]} trainPrices
- * @param {number[]} trainVolumes
- * @param {number[]} valPrices
- * @param {number[]} valVolumes
- * @param {Function} onProgress — (tried, total) callback
- * @returns {{ tree, bestParams }}
- */
 export function trainDecisionTree(
   trainPrices,
   trainVolumes,
@@ -164,7 +139,6 @@ export function trainDecisionTree(
   const trainFeats = computeFeatures(trainPrices, trainVolumes);
   const valFeats = computeFeatures(valPrices, valVolumes);
 
-  // Supervised: features at time t, target = price at t+1
   const Xtrain = [];
   const ytrain = [];
   for (let i = 0; i < trainFeats.length - 1; i++) {
@@ -184,7 +158,6 @@ export function trainDecisionTree(
   let bestParams = {};
 
   const configs = [...gridConfigs()];
-  // Sub-sample grid for browser speed: test ~50 random configs
   const maxConfigs = Math.min(configs.length, 50);
   const sampled =
     configs.length <= maxConfigs
@@ -198,7 +171,6 @@ export function trainDecisionTree(
       c.maxDepth, c.minSamplesSplit, c.minSamplesLeaf, c.maxFeatures
     );
 
-    // Evaluate on val
     let mseSum = 0;
     for (let i = 0; i < Xval.length; i++) {
       const p = predict(tree, Xval[i]);
@@ -218,9 +190,7 @@ export function trainDecisionTree(
   return { tree: bestTree, bestParams };
 }
 
-/**
- * Recursive multi-step forecast.
- */
+
 export function forecastDecisionTree(tree, recentPrices, recentVolumes, horizon = 30) {
   const prices = [...recentPrices];
   const volumes = [...recentVolumes];
@@ -233,15 +203,13 @@ export function forecastDecisionTree(tree, recentPrices, recentVolumes, horizon 
     const pred = predict(tree, x);
     predictions.push(pred);
     prices.push(pred);
-    volumes.push(volumes[volumes.length - 1]); // carry forward last volume
+    volumes.push(volumes[volumes.length - 1]); 
   }
 
   return predictions;
 }
 
-/**
- * Evaluate on test set (1-step).
- */
+
 export function evaluateDecisionTree(tree, testPrices, testVolumes) {
   const feats = computeFeatures(testPrices, testVolumes);
   let maeSum = 0, mseSum = 0, mapeSum = 0;
